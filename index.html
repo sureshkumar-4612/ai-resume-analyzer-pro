@@ -664,11 +664,22 @@
                 clearInterval(stepInterval);
 
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'API Error');
+                    let errorMessage = 'API Error';
+                    try {
+                        const err = await response.json();
+                        errorMessage = err.detail || errorMessage;
+                    } catch (e) {
+                        errorMessage = `Server error (${response.status}). The AI might be busy, please try again in a moment.`;
+                    }
+                    throw new Error(errorMessage);
                 }
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    throw new Error("Received an invalid response from the server. The analysis might have taken too long.");
+                }
                 renderDashboard(data);
 
             } catch (error) {

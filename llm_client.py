@@ -49,7 +49,7 @@ def call_llm(prompt: str, *, temperature: float | None = None, max_tokens: int |
         OPENROUTER_CHAT_ENDPOINT,
         headers=headers,
         json=payload,
-        timeout=120.0,
+        timeout=90.0,
     )
     response.raise_for_status()
 
