@@ -17,9 +17,9 @@ OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
 OPENROUTER_CHAT_ENDPOINT: str = "https://openrouter.ai/api/v1/chat/completions"
 
 # ── Model Configuration ─────────────────────────────────────
-MODEL_NAME: str = "google/gemini-2.0-flash-lite-preview-02-05:free"
+MODEL_NAME: str = "google/gemini-2.0-flash:free"
 MODEL_TEMPERATURE: float = 0.5
-MODEL_MAX_TOKENS: int = 4000
+MODEL_MAX_TOKENS: int = 8000
 
 # ── Application Settings ────────────────────────────────────
 SUPPORTED_EXTENSIONS: list[str] = [".pdf", ".txt", ".md"]

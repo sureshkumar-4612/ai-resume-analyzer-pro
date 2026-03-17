@@ -1,27 +1,29 @@
 """
-AI Resume Analyzer — Consolidated Pipeline Agent
+AI Resume Analyzer — Simplified & Optimized Agent
 ────────────────────────────────────────────────
-Orchestrates the resume analysis pipeline in two high-performance steps:
-1. Load File (ResumeLoaderTool)
-2. Single-Pass Expert Analysis (MasterAnalysisTool)
-
-This refactored architecture reduces LLM round-trips from 8 to 1,
-slashing processing time by up to 80% while maintaining accuracy.
+Consolidates analysis into a single expert pass.
 """
 
 from __future__ import annotations
 import json
 import time
+import os
+import sys
 
-from tools.resume_loader import ResumeLoaderTool
-from tools.master_analysis import MasterAnalysisTool
+# Ensure root is in path for relative-like imports in production
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from tools.resume_loader import ResumeLoaderTool
+    from tools.master_analysis import MasterAnalysisTool
+except ImportError:
+    # Fallback for different environments
+    from .tools.resume_loader import ResumeLoaderTool # type: ignore
+    from .tools.master_analysis import MasterAnalysisTool # type: ignore
 
 
 class ResumeAnalyzerAgent:
-    """
-    High-performance consolidated resume analyzer.
-    Uses a single LLM pass to generate the entire evaluation report.
-    """
+    """Consolidated resume analyzer agent."""
 
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
@@ -34,60 +36,55 @@ class ResumeAnalyzerAgent:
             print(message, flush=True)
 
     def _execute_tool(self, tool_name: str, tool, tool_input: str) -> str:
-        """Execute a tool and log performance."""
-        self._log(f"\n🔧 Executing: {tool_name}...")
+        """Execute tool and log performance."""
+        self._log(f"🔧 Executing: {tool_name}...")
         start_time = time.time()
         
         try:
-            result = tool._run(tool_input)
-            status = "success" if (result and not result.startswith("ERROR")) else "error"
+            result = str(tool._run(tool_input))
+            status = "success" if not result.startswith("ERROR") else "error"
         except Exception as exc:
             result = f"ERROR: {exc}"
             status = "exception"
 
-        elapsed: float = float(round(time.time() - start_time, 2))
+        # Safe rounding without library dependencies
+        elapsed = float(int((time.time() - start_time) * 100) / 100)
         self._log(f"   ✅ {tool_name} finished in {elapsed}s")
         
         self.steps_log.append({
             "tool": tool_name,
             "status": status,
             "duration": elapsed,
-            "output": str(result)[:200] + "..." if len(str(result)) > 200 else str(result)
+            "output_preview": result[0:200] + "..." if len(result) > 200 else result
         })
         return result
 
     def run(self, file_path: str) -> dict:
-        """
-        Run the optimized 2-step analysis pipeline.
-        """
+        """Optimized 2-step pipeline."""
         self.steps_log = []
 
-        # ── Step 1: Document Loading ─────────────────────────
-        raw_text = self._execute_tool(
-            "ResumeLoaderTool", self.resume_loader, file_path
-        )
+        # 1. Load
+        raw_text = self._execute_tool("ResumeLoaderTool", self.resume_loader, file_path)
         if raw_text.startswith("ERROR"):
             return {"report": {"error": raw_text}, "steps": self.steps_log}
 
-        # ── Step 2: Consolidated Analysis ─────────────────────
+        # 2. Analyze
+        analysis_result = self._execute_tool("MasterAnalysisTool", self.analysis_tool, raw_text)
+        
         try:
-            analysis_result = self._execute_tool(
-                "MasterAnalysisTool", self.analysis_tool, raw_text
-            )
+            if analysis_result.startswith("ERROR"):
+                raise ValueError(analysis_result)
             
-            # Final Report formatting
             report = json.loads(analysis_result)
             return {"report": report, "steps": self.steps_log}
-            
-        except (json.JSONDecodeError, TypeError):
+        except Exception:
             return {
-                "report": {"error": "Failed to generate structured report."},
+                "report": {"error": "The AI analysis took too long or returned an invalid format. Please try a different file."},
                 "steps": self.steps_log,
-                "raw_output": analysis_result if 'analysis_result' in locals() else ""
+                "debug": analysis_result[0:500] if 'analysis_result' in locals() else ""
             }
 
 
 def run_analysis(file_path: str, verbose: bool = True) -> dict:
-    """Convenience wrapper for the core pipeline."""
-    agent = ResumeAnalyzerAgent(verbose=verbose)
-    return agent.run(file_path)
+    """Entry point."""
+    return ResumeAnalyzerAgent(verbose=verbose).run(file_path)

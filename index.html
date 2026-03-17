@@ -594,6 +594,7 @@
     </div>
 
     <script>
+        // Version 1.0.1 - Stability Patch
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('file-input');
         const analyzeBtn = document.getElementById('analyze-btn');
@@ -644,18 +645,16 @@
             document.getElementById('upload-section').style.display = 'none';
             document.getElementById('loader').style.display = 'flex';
 
-            // Cycle fake steps
             let stepIdx = 0;
             const stepInterval = setInterval(() => {
                 document.getElementById('steps-feed').innerText = fakeSteps[stepIdx % fakeSteps.length];
                 stepIdx++;
-            }, 2000);
+            }, 3000);
 
             const formData = new FormData();
             formData.append('file', selectedFile);
 
             try {
-                // Use relative URL so it works seamlessly on Render or locally
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     body: formData
@@ -664,27 +663,33 @@
                 clearInterval(stepInterval);
 
                 if (!response.ok) {
-                    let errorMessage = 'API Error';
+                    let msg = "Server Error";
                     try {
                         const err = await response.json();
-                        errorMessage = err.detail || errorMessage;
+                        msg = err.detail || msg;
                     } catch (e) {
-                        errorMessage = `Server error (${response.status}). The AI might be busy, please try again in a moment.`;
+                        msg = `The server is taking too long or is under heavy load (Error ${response.status}). Please try again with a simpler file if this persists.`;
                     }
-                    throw new Error(errorMessage);
+                    throw new Error(msg);
                 }
 
                 let data;
                 try {
-                    data = await response.json();
+                    const text = await response.text();
+                    data = JSON.parse(text);
                 } catch (e) {
-                    throw new Error("Received an invalid response from the server. The analysis might have taken too long.");
+                    throw new Error("The server returned an invalid response. This usually happens when the analysis times out. Try again in a moment.");
                 }
+
+                if (data.report && data.report.error) {
+                    throw new Error(data.report.error);
+                }
+
                 renderDashboard(data);
 
             } catch (error) {
                 clearInterval(stepInterval);
-                alert("Error analyzing resume: " + error.message);
+                alert(error.message);
                 location.reload();
             }
         });
@@ -704,25 +709,21 @@
 
             document.getElementById('cand-name').innerText = r.name || 'Candidate Details';
             document.getElementById('cand-email').innerHTML = `<i class="fa-regular fa-envelope"></i> ${r.email || 'No email found'}`;
-            document.getElementById('time-val').innerText = `${Math.round(data.processing_time_seconds * 10) / 10}s`;
+            document.getElementById('time-val').innerText = `${data.processing_time_seconds || 0}s`;
 
-            // Scores
             const ovElement = document.getElementById('score-overall');
-            ovElement.innerText = r.resume_score;
-            ovElement.className = `metric-value ${getScoreClass(r.resume_score)}`;
+            ovElement.innerText = r.resume_score || 0;
+            ovElement.className = `metric-value ${getScoreClass(r.resume_score || 0)}`;
 
             const atsElement = document.getElementById('score-ats');
-            atsElement.innerText = r.ats_score;
-            atsElement.className = `metric-value ${getScoreClass(r.ats_score)}`;
+            atsElement.innerText = r.ats_score || 0;
+            atsElement.className = `metric-value ${getScoreClass(r.ats_score || 0)}`;
 
-            // Verdict
-            document.getElementById('final-verdict').innerText = r.final_verdict;
+            document.getElementById('final-verdict').innerText = r.final_verdict || "No verdict provided.";
 
-            // Skills
             const skillsHtml = (r.top_skills || []).map(s => `<div class="chip">${s}</div>`).join('');
             document.getElementById('skills-list').innerHTML = skillsHtml || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None documented.</p>';
 
-            // Lists
             document.getElementById('strengths-list').innerHTML = (r.strengths || []).map(s => `
                 <div class="list-item"><i class="fa-solid fa-check icon-pos"></i><div>${s}</div></div>
             `).join('') || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None found.</p>';
@@ -735,7 +736,6 @@
                 <div class="list-item"><i class="fa-solid fa-arrow-right icon-idea"></i><div>${i}</div></div>
             `).join('') || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None suggested.</p>';
 
-            // Roles
             document.getElementById('roles-list').innerHTML = (r.suggested_roles || []).map(role => `
                 <div class="role-item">
                     <div class="role-header">
