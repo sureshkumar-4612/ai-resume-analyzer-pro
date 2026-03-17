@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="description" content="Production-grade AI agent for resume evaluation. Upload your resume to receive a structured analysis report with ATS compatibility and skill extraction.">
+    <meta name="theme-color" content="#0a0a0c">
+    <title>Resume Analyzer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-main: #0a0a0c;
+            --bg-card: #121216;
+            --bg-hover: #1a1a20;
+            --border-subtle: #222228;
+            --text-primary: #ededf0;
+            --text-secondary: #8f8f9d;
+            --accent-main: #5e6ad2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-main);
+            /* Diff pattern background */
+            background-image: 
+                linear-gradient(var(--border-subtle) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: -1px -1px;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, transparent 0%, var(--bg-main) 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        header {
+            padding: 1.5rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(10, 10, 12, 0.8);
+            backdrop-filter: blur(16px);
+            z-index: 10;
+            position: sticky;
+            top: 0;
+        }
+
+        .logo {
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo i {
+            color: var(--text-secondary);
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .upload-section {
+            text-align: center;
+            width: 100%;
+            max-width: 640px;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .upload-section h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+            color: var(--text-primary);
+        }
+
+        .upload-section p {
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            font-size: 1.05rem;
+            font-weight: 400;
+        }
+
+        .dropzone {
+            background: var(--bg-card);
+            border: 1px dashed var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 4rem 2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent-main);
+            background: var(--bg-hover);
+        }
+
+        .dropzone i {
+            font-size: 2rem;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .dropzone:hover i {
+            color: var(--text-primary);
+        }
+
+        .dropzone input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            background: var(--text-primary);
+            color: var(--bg-main);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-top: 2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-1px);
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+        }
+
+        .loader-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 300px;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border-subtle);
+            border-top-color: var(--text-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .steps-feed {
+            margin-top: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            height: 20px;
+        }
+
+        .dashboard {
+            display: none;
+            width: 100%;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .candidate-info h2 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.5px;
+        }
+
+        .candidate-info p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: border-color 0.2s;
+        }
+        
+        .metric-card:hover {
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .metric-title {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 2.25rem;
+            font-weight: 600;
+            letter-spacing: -1px;
+        }
+
+        .score-good { color: var(--success); }
+        .score-avg { color: var(--warning); }
+        .score-poor { color: var(--danger); }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        /* Tablet Responsiveness */
+        @media (max-width: 900px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .container { padding: 4rem 1.5rem; }
+            header { padding: 1.25rem 2rem; }
+            .upload-section h1 { font-size: 2.2rem; }
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 600px) {
+            header {
+                padding: 1rem 1.25rem;
+            }
+            .logo {
+                font-size: 1rem;
+            }
+            .container {
+                padding: 2.5rem 1rem;
+            }
+            .upload-section h1 {
+                font-size: 1.8rem;
+            }
+            .upload-section p {
+                font-size: 0.95rem;
+                margin-bottom: 2rem;
+            }
+            .dropzone {
+                padding: 3rem 1.25rem;
+                text-align: center;
+            }
+            .upload-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 14px 28px;
+            }
+            .dash-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.25rem;
+                padding-bottom: 1.25rem;
+                margin-bottom: 2rem;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .candidate-info h2 {
+                font-size: 1.5rem;
+            }
+            .metric-card {
+                padding: 1.25rem;
+            }
+            .metric-value {
+                font-size: 2rem;
+            }
+            .panel {
+                padding: 1.25rem;
+            }
+            .panel h3 {
+                font-size: 1rem;
+                margin-bottom: 1.25rem;
+            }
+            .list-item {
+                font-size: 0.9rem;
+            }
+            .btn-reset {
+                width: 100%;
+                text-align: center;
+                padding: 12px 16px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .panel h3 i {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .chip-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .chip {
+            background: var(--bg-hover);
+            border: 1px solid var(--border-subtle);
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .list-item {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .list-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .list-item i {
+            margin-top: 0.25rem;
+            font-size: 1rem;
+        }
+
+        .icon-pos { color: var(--success); }
+        .icon-neg { color: var(--danger); }
+        .icon-idea { color: var(--text-secondary); }
+
+        .role-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-main);
+            border-radius: 2px;
+            margin-top: 0.75rem;
+            overflow: hidden;
+        }
+
+        .role-fill {
+            height: 100%;
+            background: var(--text-primary);
+            border-radius: 2px;
+        }
+
+        .role-item {
+            margin-bottom: 1.5rem;
+        }
+        
+        .role-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .verdict {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .btn-reset {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .btn-reset:hover {
+            background: var(--bg-hover);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-main);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-subtle);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b3b45;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-overlay"></div>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-layer-group"></i> 
+            Resume Analyzer
+        </div>
+        <a href="#" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+            <span style="font-size: 0.9rem; font-weight: 500;">View Source</span>
+            <i class="fa-brands fa-github" style="font-size: 1.2rem;"></i>
+        </a>
+    </header>
+
+    <div class="container">
+        <!-- Upload State -->
+        <div class="upload-section" id="upload-section">
+            <h1>Evaluate your resume</h1>
+            <p>Upload your resume in PDF, TXT, or MD format. Receive a comprehensive analysis, ATS compatibility score, and actionable feedback.</p>
+            
+            <div class="dropzone" id="dropzone">
+                <i class="fa-regular fa-file-lines"></i>
+                <h3 style="font-weight: 500; color: var(--text-primary); font-size: 1.1rem;">Select a file or drag and drop</h3>
+                <p style="margin-bottom: 0; color: var(--text-secondary); font-size: 0.9rem; margin-top: -0.5rem;">PDF, TXT, MD up to 5MB</p>
+                <input type="file" id="file-input" accept=".pdf,.md,.txt">
+            </div>
+            
+            <button class="upload-btn" id="analyze-btn" style="display: none;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Analyze Resume
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loader-container" id="loader">
+            <div class="spinner"></div>
+            <div class="loading-text">Processing document</div>
+            <div class="steps-feed" id="steps-feed">Extracting contents...</div>
+        </div>
+
+        <!-- Dashboard State -->
+        <div class="dashboard" id="dashboard">
+            <div class="dash-header">
+                <div class="candidate-info">
+                    <h2 id="cand-name">Candidate Profile</h2>
+                    <p id="cand-email"><i class="fa-regular fa-envelope"></i> -</p>
+                </div>
+                <div>
+                    <button class="btn-reset" onclick="location.reload()">
+                        <i class="fa-solid fa-arrow-rotate-left"></i> Start Over
+                    </button>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Quality Score</div>
+                    <div class="metric-value" id="score-overall">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">ATS Match Rate</div>
+                    <div class="metric-value" id="score-ats">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Latency</div>
+                    <div class="metric-value" style="font-size: 2rem; display: flex; align-items: center; height: 100%;" id="time-val">0.0s</div>
+                </div>
+            </div>
+
+            <div class="content-grid">
+                <div class="left-col">
+                    <div class="panel">
+                        <h3><i class="fa-regular fa-comment-dots"></i> Summary</h3>
+                        <p class="verdict" id="final-verdict"></p>
+                    </div>
+
+                    <div class="panel">
+                        <h3><i class="fa-solid fa-check"></i> Key Strengths</h3>
+                        <div id="strengths-list"></div>
+                    </div>
+
+                    <div class="panel">
+                        <h3><i class="fa-solid fa-xmark"></i> Areas for Improvement</h3>
+                        <div id="weaknesses-list"></div>
+                    </div>
+
+                    <div class="panel">
+                        <h3><i class="fa-regular fa-lightbulb"></i> Recommendations</h3>
+                        <div id="improvements-list"></div>
+                    </div>
+                </div>
+
+                <div class="right-col">
+                    <div class="panel">
+                        <h3><i class="fa-solid fa-terminal"></i> Extracted Skills</h3>
+                        <div class="chip-container" id="skills-list"></div>
+                    </div>
+
+                    <div class="panel">
+                        <h3><i class="fa-solid fa-bullseye"></i> Role Matching</h3>
+                        <div id="roles-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        let selectedFile = null;
+
+        // Drag and drop logic
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        dropzone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            const validExts = ['.pdf', '.txt', '.md'];
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            if (!validExts.includes(ext)) {
+                alert("Unsupported file type. Please upload PDF, TXT, or MD.");
+                return;
+            }
+            selectedFile = file;
+            dropzone.innerHTML = `<i class="fa-solid fa-file-check" style="color: var(--text-primary); font-size: 2rem;"></i><h3 style="color: var(--text-primary); font-weight: 500;">${file.name}</h3>`;
+            analyzeBtn.style.display = 'inline-flex';
+        }
+
+        const fakeSteps = [
+            "Parsing textual data...", 
+            "Extracting skills and entities...", 
+            "Evaluating structural formatting...",
+            "Assessing ATS compatibility...",
+            "Checking content clarity...",
+            "Generating final overview report..."
+        ];
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('loader').style.display = 'flex';
+
+            // Cycle fake steps
+            let stepIdx = 0;
+            const stepInterval = setInterval(() => {
+                document.getElementById('steps-feed').innerText = fakeSteps[stepIdx % fakeSteps.length];
+                stepIdx++;
+            }, 2000);
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                // Use relative URL so it works seamlessly on Render or locally
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(stepInterval);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'API Error');
+                }
+
+                const data = await response.json();
+                renderDashboard(data);
+
+            } catch (error) {
+                clearInterval(stepInterval);
+                alert("Error analyzing resume: " + error.message);
+                location.reload();
+            }
+        });
+
+        function getScoreClass(score) {
+            if (score >= 80) return 'score-good';
+            if (score >= 60) return 'score-avg';
+            return 'score-poor';
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('loader').style.display = 'none';
+            const dash = document.getElementById('dashboard');
+            dash.style.display = 'block';
+
+            const r = data.report;
+
+            document.getElementById('cand-name').innerText = r.name || 'Candidate Details';
+            document.getElementById('cand-email').innerHTML = `<i class="fa-regular fa-envelope"></i> ${r.email || 'No email found'}`;
+            document.getElementById('time-val').innerText = `${Math.round(data.processing_time_seconds * 10) / 10}s`;
+
+            // Scores
+            const ovElement = document.getElementById('score-overall');
+            ovElement.innerText = r.resume_score;
+            ovElement.className = `metric-value ${getScoreClass(r.resume_score)}`;
+
+            const atsElement = document.getElementById('score-ats');
+            atsElement.innerText = r.ats_score;
+            atsElement.className = `metric-value ${getScoreClass(r.ats_score)}`;
+
+            // Verdict
+            document.getElementById('final-verdict').innerText = r.final_verdict;
+
+            // Skills
+            const skillsHtml = (r.top_skills || []).map(s => `<div class="chip">${s}</div>`).join('');
+            document.getElementById('skills-list').innerHTML = skillsHtml || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None documented.</p>';
+
+            // Lists
+            document.getElementById('strengths-list').innerHTML = (r.strengths || []).map(s => `
+                <div class="list-item"><i class="fa-solid fa-check icon-pos"></i><div>${s}</div></div>
+            `).join('') || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None found.</p>';
+
+            document.getElementById('weaknesses-list').innerHTML = (r.weaknesses || []).map(w => `
+                <div class="list-item"><i class="fa-solid fa-xmark icon-neg"></i><div>${w}</div></div>
+            `).join('') || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None found.</p>';
+
+            document.getElementById('improvements-list').innerHTML = (r.recommended_improvements || []).map(i => `
+                <div class="list-item"><i class="fa-solid fa-arrow-right icon-idea"></i><div>${i}</div></div>
+            `).join('') || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None suggested.</p>';
+
+            // Roles
+            document.getElementById('roles-list').innerHTML = (r.suggested_roles || []).map(role => `
+                <div class="role-item">
+                    <div class="role-header">
+                        <span>${role.role}</span>
+                        <span style="color: var(--text-secondary);">${role.match_percentage}%</span>
+                    </div>
+                    <div class="role-bar">
+                        <div class="role-fill" style="width: ${role.match_percentage}%;"></div>
+                    </div>
+                </div>
+            `).join('') || '<p style="color: var(--text-secondary); font-size: 0.9rem;">None applicable.</p>';
+        }
+    </script>
+</body>
+</html>

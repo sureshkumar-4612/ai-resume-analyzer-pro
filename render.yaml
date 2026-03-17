@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ai-resume-analyzer
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn api:app -w 4 -k uvicorn.workers.UvicornWorker"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENROUTER_API_KEY
+        sync: false
