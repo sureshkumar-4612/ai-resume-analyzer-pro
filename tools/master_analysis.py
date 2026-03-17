@@ -6,8 +6,8 @@ maximum performance and structured output.
 """
 
 import json
-from tools.base import BaseTool
-from llm_client import call_llm
+from tools.base import BaseTool # type: ignore
+from llm_client import call_llm # type: ignore
 
 MASTER_PROMPT = """You are an expert career consultant and ATS (Applicant Tracking System) specialist.
 Perform a comprehensive analysis of the following resume and return a structured report.
@@ -62,21 +62,31 @@ class MasterAnalysisTool(BaseTool):
         if not resume_text or resume_text.startswith("ERROR"):
             return resume_text or "ERROR: Empty resume text."
         
-        prompt = MASTER_PROMPT.format(resume_text=resume_text)
-        result = call_llm(prompt)
+        # Use simple replacement to avoid errors if resume has {} brackets
+        prompt = MASTER_PROMPT.replace("{resume_text}", resume_text)
         
-        # Standard JSON cleaning logic
         try:
-            parsed = json.loads(result)
+            result = call_llm(prompt)
+        except Exception as exc:
+            return f"ERROR: LLM call failed — {exc}"
+        
+        # ── Resilient JSON Extraction ─────────────────────────
+        cleaned = result.strip()
+        
+        # 1. Remove Markdown code blocks if present
+        if "```json" in cleaned:
+            cleaned = cleaned.split("```json")[1].split("```")[0].strip()
+        elif "```" in cleaned:
+            cleaned = cleaned.split("```")[1].split("```")[0].strip()
+            
+        # 2. Extract anything between first { and last }
+        try:
+            first_brace = cleaned.find("{")
+            last_brace = cleaned.rfind("}")
+            if first_brace != -1 and last_brace != -1:
+                cleaned = cleaned[first_brace:last_brace+1]
+                
+            parsed = json.loads(cleaned)
             return json.dumps(parsed, indent=2)
-        except json.JSONDecodeError:
-            cleaned = result.strip()
-            if cleaned.startswith("```"):
-                cleaned = cleaned.split("\n", 1)[-1]
-            if cleaned.endswith("```"):
-                cleaned = cleaned.rsplit("```", 1)[0]
-            try:
-                parsed = json.loads(cleaned.strip())
-                return json.dumps(parsed, indent=2)
-            except json.JSONDecodeError:
-                return result
+        except (json.JSONDecodeError, ValueError):
+            return result # Return raw if cleaning fails

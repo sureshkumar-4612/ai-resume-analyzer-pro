@@ -80,15 +80,20 @@ class ResumeAnalyzerAgent:
         
         try:
             if analysis_result.startswith("ERROR"):
-                raise ValueError(analysis_result)
+                return {"report": {"error": analysis_result}, "steps": self.steps_log}
             
             report = json.loads(analysis_result)
             return {"report": report, "steps": self.steps_log}
-        except Exception:
+        except Exception as e:
+            # Check if it was an internal extraction error or LLM issue
+            error_msg = "The AI returned an invalid format. Please try again in a few seconds."
+            if "timeout" in analysis_result.lower():
+                error_msg = "The analysis took too long. Try a shorter resume."
+                
             return {
-                "report": {"error": "The AI analysis took too long or returned an invalid format. Please try a different file."},
+                "report": {"error": error_msg},
                 "steps": self.steps_log,
-                "debug": self._truncate(analysis_result, 500) if 'analysis_result' in locals() else ""
+                "debug": self._truncate(analysis_result, 300)
             }
 
 
