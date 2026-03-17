@@ -30,6 +30,12 @@ class ResumeAnalyzerAgent:
         if self.verbose:
             print(message, flush=True)
 
+    def _truncate(self, text: str, limit: int) -> str:
+        """Type-safe truncation for strict liners."""
+        if len(text) > limit:
+            return text[:limit] + "..."
+        return text
+
     def _execute_tool(self, tool_name: str, tool, tool_input: str) -> str:
         """Execute tool and log performance."""
         self._log(f"🔧 Executing: {tool_name}...")
@@ -50,7 +56,7 @@ class ResumeAnalyzerAgent:
             "tool": tool_name,
             "status": status,
             "duration": elapsed,
-            "output_preview": (result[:200] + "...") if len(result) > 200 else result
+            "output_preview": self._truncate(result, 200)
         })
         return result
 
@@ -76,7 +82,7 @@ class ResumeAnalyzerAgent:
             return {
                 "report": {"error": "The AI analysis took too long or returned an invalid format. Please try a different file."},
                 "steps": self.steps_log,
-                "debug": (analysis_result[:500]) if 'analysis_result' in locals() else ""
+                "debug": self._truncate(analysis_result, 500) if 'analysis_result' in locals() else ""
             }
 
 
