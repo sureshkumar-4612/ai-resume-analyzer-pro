@@ -13,13 +13,8 @@ import sys
 # Ensure root is in path for relative-like imports in production
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-try:
-    from tools.resume_loader import ResumeLoaderTool
-    from tools.master_analysis import MasterAnalysisTool
-except ImportError:
-    # Fallback for different environments
-    from .tools.resume_loader import ResumeLoaderTool # type: ignore
-    from .tools.master_analysis import MasterAnalysisTool # type: ignore
+from tools.resume_loader import ResumeLoaderTool # type: ignore
+from tools.master_analysis import MasterAnalysisTool # type: ignore
 
 
 class ResumeAnalyzerAgent:
@@ -55,7 +50,7 @@ class ResumeAnalyzerAgent:
             "tool": tool_name,
             "status": status,
             "duration": elapsed,
-            "output_preview": result[0:200] + "..." if len(result) > 200 else result
+            "output_preview": (result[:200] + "...") if len(result) > 200 else result
         })
         return result
 
@@ -81,7 +76,7 @@ class ResumeAnalyzerAgent:
             return {
                 "report": {"error": "The AI analysis took too long or returned an invalid format. Please try a different file."},
                 "steps": self.steps_log,
-                "debug": analysis_result[0:500] if 'analysis_result' in locals() else ""
+                "debug": (analysis_result[:500]) if 'analysis_result' in locals() else ""
             }
 
 
